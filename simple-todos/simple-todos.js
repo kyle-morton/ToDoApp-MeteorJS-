@@ -30,11 +30,8 @@ if (Meteor.isClient) {
       //get value from form element
       var text = event.target.text.value;
       
-      //insert task into MDB collection
-      Tasks.insert({
-        text: text,
-        createdAt: new Date()
-      });
+      //insert task into collection
+      Meteor.call("addTask", text);
       
       //clear form
       event.target.text.value = ""; 
@@ -46,18 +43,44 @@ if (Meteor.isClient) {
   
   Template.task.events({
     "click .toggle-checked": function(){
-      //set the checked property to the opposite of its current value
-      Tasks.update(this._id, {
-        $set: {checked: !this.checked}
-      });
+        //set the checked property to the opposite of its current value
+        Meteor.call("setChecked", this._id, !this.checked);
     },
     "click .delete": function(){
-      Tasks.remove(this._id);
+        Meteor.call("deleteTask", this._id);
     }
   });
   
-  
+  //use usernames instead of emails
+  Accounts.ui.config({
+    passwordSignupFields: "USERNAME_ONLY"
+  });
 }
+
+//define method below to check if user logged in
+//and allow CRUD if they are
+Meteor.methods({
+  addTask: function(text){
+      //make sure user logged in
+      if (!Meteor.userId()){
+        throw new Meteor.Error("Not-Authorized!");
+      }
+      
+      Tasks.insert({
+        text: text,
+        createdAt: new Date(),
+        owner: Meteor.userId(), //_id of logged in user
+        username: Meteor.user().username
+      });
+  },
+  deleteTask: function(taskId){
+    Tasks.remove(taskId);
+  },
+  setChecked: function (taskId, setChecked) {
+    Tasks.update(taskId, {$set: {checked: setChecked}}); 
+  }
+});
+
 
 if (Meteor.isServer) {
   Meteor.startup(function () {
